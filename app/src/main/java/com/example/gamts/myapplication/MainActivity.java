@@ -1,0 +1,137 @@
+package com.example.gamts.myapplication;
+
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.os.Bundle;
+import android.support.v7.app.AlertDialog;
+import android.support.v7.app.AppCompatActivity;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.EditText;
+import android.widget.ListView;
+import android.widget.Spinner;
+import android.widget.Toast;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Created by SONY VAIO on 27/4/2560.
+ */
+
+public class MainActivity extends AppCompatActivity implements  BookView{
+
+    BookPresenter presenter = null;
+    ListView resultListView;
+    Spinner spin;
+    String state;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        initViewHolders();
+
+        if(presenter == null) {
+            presenter = new BookPresenter(this);
+        }
+
+        presenter.listAllBook();
+
+        spin = (Spinner)findViewById(R.id.spin);
+
+        ArrayList<String> choices = new ArrayList<String>();
+        choices.add("Title");
+        choices.add("Published year");
+
+        ArrayAdapter spinAdapter =  new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, choices);
+        spin.setAdapter(spinAdapter);
+
+        createUser();
+
+    }
+    private void createUser(){
+        if(getIntent().getExtras() != null) {
+            Intent intent = getIntent();
+            int collectionSize = Integer.parseInt(intent.getStringExtra("collectionSize"));
+            double wallet = Double.parseDouble(intent.getStringExtra("wallet"));
+
+            for (int i = 0; i < collectionSize; i++) {
+                presenter.user.addCollection(intent.getStringExtra("collection" + i));
+            }
+            presenter.setWallet(wallet);
+        }
+    }
+
+    private void initViewHolders() {
+        resultListView = (ListView) findViewById(R.id.list);
+    }
+
+    @Override
+    public void update(Book book) {}
+
+    @Override
+    public void updateAll(List<Book> books) {
+        String[] list = new String[books.size()];
+
+        for (int i = 0;i<books.size();i++) {
+            list[i] = books.get(i).getTitle()+"\n"+ books.get(i).getPublicationYear()+ "\nPrice: " + books.get(i).getPrice() + " USD";
+        }
+        ArrayAdapter<String> adapter =  new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, list);
+        resultListView.setAdapter(adapter);
+
+        resultListView.setOnItemClickListener(new AdapterView.OnItemClickListener()
+        {
+            @Override
+            public void onItemClick(AdapterView<?> arg0, View arg1, final int position, long arg3)
+            {
+                AlertDialog.Builder builder =
+                        new AlertDialog.Builder(MainActivity.this);
+                builder.setMessage("Add this book to cart");
+                builder.setPositiveButton("Add", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) {
+                        Toast.makeText(getApplicationContext(),
+                                "Book added", Toast.LENGTH_SHORT).show();
+                        presenter.addToCart(position);
+                    }
+                });
+                builder.setNegativeButton("Don't add", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                    }
+                });
+                builder.show();
+            }
+        });
+    }
+
+    public void onSearch(View view) {
+        EditText editText = (EditText)findViewById(R.id.text);
+        String text = editText.getText().toString();
+        state = String.valueOf(spin.getSelectedItem());
+        presenter.search(text,state);
+    }
+
+    public void onProfile(View view) {
+        Intent intent = new Intent(MainActivity.this, ProfileActivity.class);
+        ArrayList<Book> cartBooks = presenter.user.cart.getBooks();
+        ArrayList<String> collection = presenter.user.checkCollection();
+
+        intent.putExtra("cartSize", cartBooks.size()+"");
+        intent.putExtra("collectionSize", collection.size()+"");
+        intent.putExtra("wallet", presenter.user.wallet+"");
+        intent.putExtra("sumPrice", presenter.user.cart.getSumPrice()+"");
+        for (int i = 0;i<collection.size();i++) {
+            intent.putExtra("collection"+i,collection.get(i));
+        }
+        for (int i = 0;i<cartBooks.size();i++) {
+            intent.putExtra("cartBook"+i,cartBooks.get(i).getTitle()+"\n"+ cartBooks.get(i).getPublicationYear()+ "\nPrice: " + cartBooks.get(i).getPrice() + " USD");
+        }
+        startActivity(intent);
+        finish();
+    }
+}
+
+
